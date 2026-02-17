@@ -1,36 +1,145 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# My Library — Reading Tracker
+
+A personal book tracking application built with Next.js 14, Prisma, MySQL, and NextAuth v5.
+
+## Features
+
+- 📚 Track your reading progress
+- 🎯 Set yearly reading goals
+- ⭐ Add ratings and reviews
+- 📊 View reading statistics and trends
+- 🔖 Create favorites lists
+- 🔍 Search books via Open Library API
+
+## Tech Stack
+
+- **Framework:** Next.js 14 (App Router)
+- **Language:** TypeScript
+- **Database:** MySQL (Docker)
+- **ORM:** Prisma
+- **Auth:** NextAuth.js v5
+- **Styling:** Tailwind CSS
+- **Icons:** Lucide React
+- **Charts:** Recharts
+- **External API:** Open Library
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+ 
+- Docker Desktop
+- Git
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repo-url>
+   cd my-library
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Setup environment variables**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Then edit `.env` and add your `NEXTAUTH_SECRET`:
+   ```bash
+   # Generate with: openssl rand -base64 32
+   NEXTAUTH_SECRET="your-secret-here"
+   ```
+
+4. **Start MySQL with Docker**
+   ```bash
+   docker-compose up -d
+   ```
+   
+   Verify it's running:
+   ```bash
+   docker ps
+   ```
+
+5. **Push database schema**
+   ```bash
+   npm run db:push
+   ```
+
+6. **Seed initial data**
+   ```bash
+   npm run db:seed
+   ```
+
+7. **Run development server**
+   ```bash
+   npm run dev
+   ```
+
+8. **Open http://localhost:3000**
+
+## Database Commands
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Push schema changes to database
+npm run db:push
+
+# Open Prisma Studio (DB GUI)
+npm run db:studio
+
+# Generate Prisma Client
+npm run db:generate
+
+# Seed database
+npm run db:seed
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Project Structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+my-library/
+├── prisma/
+│   ├── schema.prisma       # Database schema
+│   └── seed.ts            # Seed script
+├── src/
+│   ├── app/               # Next.js app directory
+│   │   ├── (app)/        # Protected routes
+│   │   └── (auth)/       # Auth routes
+│   ├── components/        # React components
+│   ├── lib/              # Utilities & configs
+│   └── auth.ts           # NextAuth config
+├── docker-compose.yml     # MySQL container
+└── package.json
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment Variables
 
-## Learn More
+Required variables in `.env`:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+DATABASE_URL="mysql://mylib_user:mylib_pass@localhost:3306/my_library"
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="<generate-with-openssl>"
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Sprint Plan
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [x] Sprint 1: Setup (Next.js, Prisma, MySQL, NextAuth, Tailwind)
+- [ ] Sprint 2: Auth (Login, Register, Onboarding)
+- [ ] Sprint 3: Book CRUD (Manual entry)
+- [ ] Sprint 4: Open Library API integration
+- [ ] Sprint 5: Library page (Grid/List views, Filter/Sort)
+- [ ] Sprint 6: Book Detail + Progress tracking
+- [ ] Sprint 7: Ratings & Reviews
+- [ ] Sprint 8: Favorites
+- [ ] Sprint 9: Settings (Profile + Goals)
+- [ ] Sprint 10: Dashboard (Stats, Charts, Trends)
+- [ ] Sprint 11: Polish & Deploy
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
