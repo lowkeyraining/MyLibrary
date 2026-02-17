@@ -1,52 +1,48 @@
+// auth.ts
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
-import { z } from "zod"
 
 const prisma = new PrismaClient()
-
-const LoginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-})
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
       credentials: {
-        email: { label: "Email", type: "email" },
+        identifier: { label: "Username or Email", type: "text" },
         password: { label: "Password", type: "password" },
       },
       authorize: async (credentials) => {
-        const parsedCredentials = LoginSchema.safeParse(credentials)
+        const { identifier, password } = credentials as any
+        
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [{ email: identifier }, { username: identifier }]
+          }
+        })
 
-        if (parsedCredentials.success) {
-          const { email, password } = parsedCredentials.data
-          
-          const user = await prisma.user.findUnique({ where: { email } })
-          if (!user || !user.password) return null
-
-          const passwordsMatch = await bcrypt.compare(password, user.password)
-          if (passwordsMatch) return user
-        }
-        return null
+        if (!user || !user.password) return null
+        const isValid = await bcrypt.compare(password, user.password)
+        
+        return isValid ? user : null
       },
     }),
   ],
-  pages: {
-    signIn: "/login",
-  },
+  session: { strategy: "jwt" },
   callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id
+      }
+      return token
+    },
     async session({ session, token }) {
-      if (token.sub && session.user) {
-        session.user.id = token.sub
+      if (session.user && token.id) {
+        session.user.id = token.id as string
       }
       return session
     },
-    async jwt({ token }) {
-      return token
-    }
   },
-  session: { strategy: "jwt" },
+  pages: { signIn: "/login" },
 })
