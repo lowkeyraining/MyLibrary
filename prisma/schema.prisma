@@ -159,7 +159,7 @@ model ReadingGoal {
   period      GoalPeriod @default(YEARLY)
   targetBooks Int
   year        Int
-  month       Int?
+  month       Int        @default(0)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -167,4 +167,6 @@ model ReadingGoal {
 
   @@unique([userId, period, year, month])
   @@map("reading_goals")
+  
 }
+

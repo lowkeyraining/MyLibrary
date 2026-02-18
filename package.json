@@ -13,17 +13,19 @@
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.1",
     "@prisma/client": "^7.4.0",
     "@prisma/config": "^7.4.0",
     "babel-plugin-react-compiler": "^1.0.0",
     "bcryptjs": "^2.4.3",
     "lucide-react": "^0.462.0",
     "next": "^16.1.6",
-    "next-auth": "^5.0.0-beta.25",
+    "next-auth": "^5.0.0-beta.30",
     "next-safe-action": "^7.9.7",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "recharts": "^2.14.1",
+    "tailwind-merge": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.1"
   },
@@ -36,7 +38,7 @@
     "eslint": "^8",
     "eslint-config-next": "^15.0.0",
     "postcss": "^8.4.0",
-    "prisma": "^7.4.0",
+    "prisma": "^5.22.0",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.21.0",
     "typescript": "^5"
