@@ -1,4 +1,3 @@
-// actions/register.ts
 "use server"
 import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"

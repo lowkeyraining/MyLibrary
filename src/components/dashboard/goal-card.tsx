@@ -64,7 +64,7 @@ export function GoalCard({ year, target, completed }: GoalCardProps) {
         <div className="flex-1">
           <div className="text-lg font-bold text-[#5C4033] mb-1">{percent}% Complete</div>
           <div className="text-xs text-[#8B6F5E] leading-relaxed mb-4">
-            You've read <span className="text-[#C07B5A] font-semibold">{completed} books</span>.
+            You@apos;ve read <span className="text-[#C07B5A] font-semibold">{completed} books</span>.
             <br />
             {remainingBooks > 0 
               ? `Keep going! ${remainingBooks} more to reach your goal.` 

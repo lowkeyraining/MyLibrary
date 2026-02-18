@@ -1,10 +1,8 @@
-// auth.ts
+// src/auth.ts
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma" // 1. ใช้ตัวที่สร้างไว้ใน lib แทนการ new ใหม่
 import bcrypt from "bcryptjs"
-
-const prisma = new PrismaClient()
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -14,7 +12,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       authorize: async (credentials) => {
-        const { identifier, password } = credentials as any
+        // 2. แก้ไขการระบุ Type จาก 'any' เป็นโครงสร้างข้อมูลที่ชัดเจน
+        const { identifier, password } = credentials as { identifier: string; password: string }
         
         const user = await prisma.user.findFirst({
           where: {

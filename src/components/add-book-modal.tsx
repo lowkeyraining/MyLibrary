@@ -1,5 +1,7 @@
 "use client"
 
+import { addBookToLibrary } from "@/actions/book"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Search, Book, Plus, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -7,13 +9,23 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+interface BookResult {
+  id: string
+  title: string
+  authors: string[]
+  pageCount: number
+  coverImage: string | null
+  categories: string[]
+}
+
 export default function AddBookModal() {
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState("")
-  const [results, setResults] = useState<any[]>([])
+  const [results, setResults] = useState<BookResult[]>([])
   const [loading, setLoading] = useState(false)
+  const [isAdding, setIsAdding] = useState<string | null>(null)
 
-  // ฟังก์ชันค้นหาหนังสือ
   const handleSearch = async () => {
     if (!query) return
     setLoading(true)
@@ -25,6 +37,25 @@ export default function AddBookModal() {
       console.error(error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleAddBook = async (book: BookResult) => {
+    setIsAdding(book.id)
+    try {
+      const result = await addBookToLibrary(book)
+      if (result.success) {
+        router.refresh()
+        setIsOpen(false) 
+        setResults([])
+        setQuery("")
+      } else {
+        alert("Error adding book")
+      }
+    } catch { 
+      alert("Something went wrong")
+    } finally {
+      setIsAdding(null)
     }
   }
 
@@ -61,12 +92,10 @@ export default function AddBookModal() {
               </Button>
             </div>
 
-            {/* ส่วนแสดงผลลัพธ์ */}
             <div className="space-y-3">
               {results.map((book) => (
                 <div key={book.id} className="flex gap-4 p-3 bg-white border border-[#D9D2C7] rounded-lg hover:border-[#C07B5A] transition-all">
-                  {/* รูปปก */}
-                  <div className="w-[60px] h-[90px] bg-gray-200 flex-shrink-0 rounded overflow-hidden">
+                  <div className="w-[60px] h-[90px] bg-gray-200 flex-shrink-0 rounded overflow-hidden shadow-sm">
                     {book.coverImage ? (
                       <img src={book.coverImage} alt={book.title} className="w-full h-full object-cover" />
                     ) : (
@@ -74,15 +103,24 @@ export default function AddBookModal() {
                     )}
                   </div>
                   
-                  {/* ข้อมูล */}
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-[#5C4033] truncate">{book.title}</h4>
-                    <p className="text-xs text-[#8B6F5E]">{book.authors.join(", ")}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">{book.pageCount} pages</p>
+                    <h4 className="font-bold text-[#5C4033] truncate text-sm">{book.title}</h4>
+                    <p className="text-xs text-[#8B6F5E] mb-1">{book.authors.join(", ")}</p>
+                    <p className="text-[10px] text-gray-400">{book.pageCount} pages</p>
                   </div>
 
-                  <Button size="sm" variant="outline" className="self-center text-[#C07B5A] border-[#C07B5A] hover:bg-[#C07B5A] hover:text-white">
-                    Add
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => handleAddBook(book)}
+                    disabled={isAdding === book.id}
+                    className="self-center text-[#C07B5A] border-[#C07B5A] hover:bg-[#C07B5A] hover:text-white min-w-[80px]"
+                  >
+                    {isAdding === book.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Add"
+                    )}
                   </Button>
                 </div>
               ))}
@@ -96,7 +134,7 @@ export default function AddBookModal() {
           </TabsContent>
 
           <TabsContent value="manual">
-            <div className="py-10 text-center text-gray-400">เดี๋ยวเรามาทำฟอร์มกรอกเองทีหลัง</div>
+            <div className="py-10 text-center text-gray-400 text-sm italic">Manual Entry: Coming Soon</div>
           </TabsContent>
         </Tabs>
       </DialogContent>

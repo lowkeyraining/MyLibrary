@@ -10,7 +10,7 @@ export default function AuthLayout({
     // เปลี่ยนจาก grid เป็น flex เพื่อให้ทำ animation ยืดขยายได้เนียนขึ้น
     <div className="w-full min-h-screen flex flex-col lg:flex-row overflow-x-hidden bg-[#FAF9F6]">
 
-      {/* ฝั่งซ้าย - พื้นหลังสีฟ้า (ปรับแก้ใหม่) */}
+      {/* ฝั่งซ้าย - พื้นหลังสีฟ้า*/}
       <div
         className="
           hidden lg:flex
