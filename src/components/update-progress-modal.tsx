@@ -38,7 +38,6 @@ export function UpdateProgressModal({ bookId, title, author, totalPages, initial
   // ฟังก์ชันพิมพ์ตัวเลขหน้า
   const handlePageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseInt(e.target.value) || 0
-    // บังคับไม่ให้กรอกเกินหน้าทั้งหมด (ถ้ามี totalPages)
     setPage(totalPages > 0 ? Math.min(val, totalPages) : Math.max(0, val))
   }
 

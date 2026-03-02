@@ -20,7 +20,7 @@ export default async function BooksPage({
   // ดึงค่าตัวกรองและ view จาก URL
   const { status = "ALL", query = "", category = "ALL", sort = "DATE_DESC", view = "grid" } = await searchParams
 
-  // 1. ดึงหนังสือทั้งหมดของ User (เพิ่ม include review เพื่อเอาดาวมาโชว์ใน List View)
+  // 1. ดึงหนังสือทั้งหมดของ User
   const allBooks = await prisma.book.findMany({
     where: { userId: session.user.id },
     include: { 
@@ -33,10 +33,12 @@ export default async function BooksPage({
     new Set(allBooks.flatMap((b) => b.categories.map((c) => c.category.name)))
   ).sort()
 
+  // คำนวณสถิติแต่ละสถานะ
   const totalBooks = allBooks.length
   const completedBooks = allBooks.filter(b => b.status === 'COMPLETED').length
   const readingBooks = allBooks.filter(b => b.status === 'READING').length
   const wantBooks = allBooks.filter(b => b.status === 'WANT_TO_READ').length
+  const droppedBooks = allBooks.filter(b => b.status === 'DROPPED').length // นับจำนวนเล่มที่ On Hold (Dropped)
 
   // 2. กรองข้อมูล
   let displayedBooks = [...allBooks]
@@ -87,7 +89,7 @@ export default async function BooksPage({
       case 'COMPLETED':
         return <span className="inline-flex items-center text-[9px] px-[7px] py-[2px] rounded-full font-medium bg-[#9CAF88]/20 text-[#5A7A4A]">Completed</span>
       case 'DROPPED':
-        return <span className="inline-flex items-center text-[9px] px-[7px] py-[2px] rounded-full font-medium bg-[#C4887A]/15 text-[#9A5A4A]">Dropped</span>
+        return <span className="inline-flex items-center text-[9px] px-[7px] py-[2px] rounded-full font-medium bg-[#C4887A]/15 text-[#9A5A4A]">On Hold</span>
       case 'WANT_TO_READ':
       default:
         return <span className="inline-flex items-center text-[9px] px-[7px] py-[2px] rounded-full font-medium bg-[#A89CC8]/15 text-[#7B6FA8]">Want to read</span>
@@ -96,6 +98,8 @@ export default async function BooksPage({
 
   return (
     <div className="max-w-[1200px] w-full mx-auto p-6 md:p-10">
+      
+      {/* ── HEADER ── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-[26px] font-bold tracking-tight text-[#5C4033] mb-1">My Library</h1>
@@ -106,6 +110,7 @@ export default async function BooksPage({
 
       <LibraryFilters categories={uniqueCategories} />
 
+      {/* ── TABS ── */}
       <div className="flex border-b border-[#D9D2C7] mb-6 mt-4 overflow-x-auto hide-scrollbar">
         <Link href={buildTabUrl('ALL')} className={`py-2.5 px-4 text-[13px] whitespace-nowrap transition-colors ${status === 'ALL' ? 'font-semibold text-[#5C4033] border-b-2 border-[#C07B5A]' : 'text-[#8B6F5E] hover:text-[#5C4033] border-b-2 border-transparent'}`}>
           All <span className="text-[10px] bg-[#EDE8DF] py-[1px] px-[6px] rounded-full ml-1 font-normal text-[#5C4033]">{totalBooks}</span>
@@ -119,8 +124,14 @@ export default async function BooksPage({
         <Link href={buildTabUrl('COMPLETED')} className={`py-2.5 px-4 text-[13px] whitespace-nowrap transition-colors ${status === 'COMPLETED' ? 'font-semibold text-[#5C4033] border-b-2 border-[#C07B5A]' : 'text-[#8B6F5E] hover:text-[#5C4033] border-b-2 border-transparent'}`}>
           Completed <span className="text-[10px] bg-[#EDE8DF] py-[1px] px-[6px] rounded-full ml-1 font-normal text-[#5C4033]">{completedBooks}</span>
         </Link>
+        
+        {/* เพิ่มแท็บ On Hold ตรงนี้ */}
+        <Link href={buildTabUrl('DROPPED')} className={`py-2.5 px-4 text-[13px] whitespace-nowrap transition-colors ${status === 'DROPPED' ? 'font-semibold text-[#5C4033] border-b-2 border-[#C07B5A]' : 'text-[#8B6F5E] hover:text-[#5C4033] border-b-2 border-transparent'}`}>
+          On Hold <span className="text-[10px] bg-[#EDE8DF] py-[1px] px-[6px] rounded-full ml-1 font-normal text-[#5C4033]">{droppedBooks}</span>
+        </Link>
       </div>
 
+      {/* ── BOOK GRID / LIST ── */}
       {displayedBooks.length === 0 ? (
         <div className="text-center py-20 border-2 border-dashed border-[#D9D2C7] rounded-xl flex flex-col items-center justify-center">
           <BookOpen className="w-10 h-10 text-[#D9D2C7] mb-3" />
@@ -166,7 +177,6 @@ export default async function BooksPage({
                     ★ {book.review?.rating || "—"}
                   </div>
                   
-                  {/* ไม่ต้องใส่ onClick ตรงนี้แล้ว เพื่อกัน Error ให้ตัว FavoriteButton จัดการตัวเอง */}
                   <div className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center justify-center pr-1">
                     <div className="scale-[0.85]">
                       <FavoriteButton bookId={book.id} initialFavorite={book.isFavorite} />

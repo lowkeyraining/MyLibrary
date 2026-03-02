@@ -45,3 +45,19 @@ export async function updateProfile(data: ProfileData) {
     return { success: false, error: "เกิดข้อผิดพลาดกับฐานข้อมูล" }
   }
 }
+
+export async function getCurrentUser() {
+  const session = await auth()
+  if (!session?.user?.id) return null
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { 
+      name: true, 
+      email: true, 
+      image: true 
+    }
+  })
+
+  return user
+}

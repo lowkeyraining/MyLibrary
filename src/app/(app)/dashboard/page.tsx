@@ -141,7 +141,6 @@ export default async function DashboardPage() {
           ) : (
             recentBooks.map((book) => (
               
-              /* 👇 เพิ่ม Link ครอบตรงนี้ เพื่อให้กดไปหน้า Detail ได้ 👇 */
               <Link href={`/books/${book.id}`} key={book.id}>
                 <div className="flex-shrink-0 w-[120px] space-y-2 cursor-pointer hover:opacity-90 transition-opacity">
                   <div className="h-[180px] w-full bg-[#FAF9F6] border border-[#D9D2C7] rounded-lg shadow-sm overflow-hidden relative group">

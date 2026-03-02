@@ -5,6 +5,7 @@ import { LayoutGrid, Library, Heart, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { signOut } from "next-auth/react"
 import { useEffect, useState } from "react"
+import { getCurrentUser } from "@/actions/user" // 👈 อิมพอร์ตฟังก์ชันมาใช้
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutGrid },
@@ -16,12 +17,10 @@ export default function Sidebar() {
   const pathname = usePathname()
   const [user, setUser] = useState<any>(null)
 
-  // ดึงข้อมูล User มาแสดงที่ Sidebar แบบปลอดภัย (ไม่ต้องพึ่ง SessionProvider ให้วุ่นวาย)
   useEffect(() => {
-    fetch('/api/auth/session')
-      .then(res => res.json())
+    getCurrentUser()
       .then(data => {
-        if (data?.user) setUser(data.user)
+        if (data) setUser(data)
       })
       .catch(console.error)
   }, [])

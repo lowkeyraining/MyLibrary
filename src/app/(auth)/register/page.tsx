@@ -27,7 +27,6 @@ export default function RegisterPage() {
       return
     }
 
-    // สำเร็จ → signIn ด้วย next-auth/react (client-side)
     const result = await signIn("credentials", {
       identifier: formData.get("email"),
       password: formData.get("password"),
