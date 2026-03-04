@@ -133,7 +133,8 @@ export function GoalCard({ year, target, completed }: GoalCardProps) {
                 {"You've read "}
                 <span className="text-[#C07B5A] font-semibold">{completed} books</span>
                 {remaining > 0
-                  ? `. Keep going! ${remaining} more to reach your goal.`
+                  ? `. Keep going!
+                  ${remaining} more to reach your goal.`
                   : ". Goal achieved!"}
               </p>
             </div>

@@ -1,9 +1,10 @@
 "use client"
 
 import { addBookToLibrary, addBookManually } from "@/actions/book"
+import { uploadBookCover } from "@/actions/upload"
 import { useRouter } from "next/navigation"
 import { useState, useEffect, useRef } from "react"
-import { Search, Book, Plus, Loader2, Upload, X, Link } from "lucide-react"
+import { Search, Book, Plus, Loader2, Upload, X, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -38,6 +39,14 @@ interface ManualFormData {
   coverUrl: string
 }
 
+const cleanGoogleBooksUrl = (url: string | null): string | null => {
+  if (!url) return null
+  return url
+    .replace("zoom=1", "zoom=0")
+    .replace("&edge=curl", "")
+    .replace("http://", "https://")
+}
+
 export default function AddBookModal() {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
@@ -54,13 +63,15 @@ export default function AddBookModal() {
     title: "", authors: "", isbn: "", totalPages: "",
     categories: [], description: "", coverImage: null, coverUrl: "",
   })
+  const [allCategories, setAllCategories] = useState<string[]>(PRESET_CATEGORIES)
+  const [isUploadingCover, setIsUploadingCover] = useState(false)
   const [categorySearch, setCategorySearch] = useState("")
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const categoryRef = useRef<HTMLDivElement>(null)
+  const urlTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Close category dropdown when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (categoryRef.current && !categoryRef.current.contains(e.target as Node)) {
@@ -71,9 +82,8 @@ export default function AddBookModal() {
     return () => document.removeEventListener("mousedown", handler)
   }, [])
 
-  // Debounced search
   useEffect(() => {
-    if (!query.trim()) { setResults([]); return }
+    if (!query.trim() || query.trim().length < 3) { setResults([]); return }
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
     debounceTimer.current = setTimeout(async () => {
       setLoading(true)
@@ -86,14 +96,17 @@ export default function AddBookModal() {
       } finally {
         setLoading(false)
       }
-    }, 1000)
+    }, 1500)
     return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current) }
   }, [query])
 
   const handleAddBook = async (book: BookResult) => {
     setIsAdding(book.id)
     try {
-      const result = await addBookToLibrary(book)
+      const result = await addBookToLibrary({
+        ...book,
+        coverImage: cleanGoogleBooksUrl(book.coverImage),
+      })
       if (result.success) {
         router.refresh()
         setIsOpen(false)
@@ -109,18 +122,50 @@ export default function AddBookModal() {
     }
   }
 
-  const handleCoverFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => setForm(f => ({ ...f, coverImage: reader.result as string, coverUrl: "" }))
+    reader.onload = async () => {
+      const base64 = reader.result as string
+      setIsUploadingCover(true)
+      try {
+        const uploadRes = await uploadBookCover(base64)
+        if (uploadRes.success) {
+          setForm(f => ({ ...f, coverImage: uploadRes.url!, coverUrl: "" }))
+        } else {
+          alert("อัพโหลดรูปปกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง")
+        }
+      } finally {
+        setIsUploadingCover(false)
+      }
+    }
     reader.readAsDataURL(file)
   }
 
-  const handleCoverUrl = () => {
-    if (form.coverUrl.trim()) {
-      setForm(f => ({ ...f, coverImage: f.coverUrl, coverUrl: "" }))
+  // ✅ apply URL to cover
+  const applyCoverUrl = (url: string) => {
+    if (url.trim()) {
+      setForm(f => ({ ...f, coverImage: url.trim(), coverUrl: "" }))
     }
+  }
+
+  // ✅ debounce while typing
+  const handleCoverUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value
+    setForm(f => ({ ...f, coverUrl: url }))
+    if (urlTimer.current) clearTimeout(urlTimer.current)
+    urlTimer.current = setTimeout(() => {
+      if (url.trim()) applyCoverUrl(url)
+    }, 600)
+  }
+
+  // ✅ instant on paste
+  const handleCoverUrlPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const url = e.clipboardData.getData("text")
+    setTimeout(() => {
+      if (url.trim()) applyCoverUrl(url)
+    }, 0)
   }
 
   const toggleCategory = (cat: string) => {
@@ -132,9 +177,13 @@ export default function AddBookModal() {
     }))
   }
 
+  // ✅ custom category เพิ่มเข้า dropdown ด้วย
   const addCustomCategory = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && categorySearch.trim()) {
       const newCat = categorySearch.trim()
+      if (!allCategories.includes(newCat)) {
+        setAllCategories(prev => [...prev, newCat])
+      }
       if (!form.categories.includes(newCat)) {
         setForm(f => ({ ...f, categories: [...f.categories, newCat] }))
       }
@@ -142,13 +191,17 @@ export default function AddBookModal() {
     }
   }
 
-  const filteredCategories = PRESET_CATEGORIES.filter(c =>
+  const filteredCategories = allCategories.filter(c =>
     c.toLowerCase().includes(categorySearch.toLowerCase())
   )
 
   const handleSaveManual = async () => {
-    if (!form.title.trim() || !form.authors.trim()) {
-      alert("กรุณากรอก Title และ Author(s)")
+    if (!form.title.trim() || !form.authors.trim() || !form.totalPages) {
+      alert("กรุณากรอก Title, Author(s) และ Total Pages")
+      return
+    }
+    if (isUploadingCover) {
+      alert("กรุณารอให้อัพโหลดรูปปกเสร็จก่อน")
       return
     }
     setIsSaving(true)
@@ -157,7 +210,7 @@ export default function AddBookModal() {
         title: form.title.trim(),
         authors: form.authors.split(",").map(a => a.trim()).filter(Boolean),
         isbn: form.isbn.trim() || null,
-        totalPages: form.totalPages ? parseInt(form.totalPages) : 0,
+        totalPages: parseInt(form.totalPages),
         categories: form.categories,
         description: form.description.trim() || undefined,
         coverImage: form.coverImage,
@@ -214,7 +267,7 @@ export default function AddBookModal() {
                 <div key={book.id} className="flex gap-3 p-3 bg-white border border-[#D9D2C7] rounded-lg hover:border-[#C07B5A] transition-all">
                   <div className="w-[50px] h-[75px] bg-gray-100 flex-shrink-0 rounded overflow-hidden shadow-sm">
                     {book.coverImage ? (
-                      <img src={book.coverImage} alt={book.title} className="w-full h-full object-cover" />
+                      <img src={cleanGoogleBooksUrl(book.coverImage)!} alt={book.title} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-300">
                         <Book size={16} />
@@ -238,11 +291,15 @@ export default function AddBookModal() {
                   </Button>
                 </div>
               ))}
-              {!loading && results.length === 0 && query.trim() === "" && (
-                <div className="text-center py-10 text-gray-400 text-sm">พิมพ์ชื่อหนังสือเพื่อค้นหา</div>
+
+              {!loading && query.trim().length > 0 && query.trim().length < 3 && (
+                <div className="text-center py-10 text-gray-400 text-sm">พิมพ์อย่างน้อย 3 ตัวอักษร</div>
               )}
-              {!loading && results.length === 0 && query.trim() !== "" && (
+              {!loading && results.length === 0 && query.trim().length >= 3 && (
                 <div className="text-center py-10 text-gray-400 text-sm">ไม่พบหนังสือที่ค้นหา</div>
+              )}
+              {!loading && query.trim() === "" && (
+                <div className="text-center py-10 text-gray-400 text-sm">พิมพ์ชื่อหนังสือเพื่อค้นหา</div>
               )}
             </div>
           </TabsContent>
@@ -251,51 +308,53 @@ export default function AddBookModal() {
           <TabsContent value="manual" className="flex flex-col flex-1 min-h-0 mt-4">
             <div className="overflow-y-auto flex-1 pr-1 space-y-5">
 
-              {/* Cover + Fields row */}
               <div className="flex gap-4">
-                {/* Cover upload */}
-                <div className="flex flex-col gap-2 flex-shrink-0" style={{ width: 130 }}>
+                <div className="flex flex-col gap-2 flex-shrink-0" style={{ width: 110 }}>
                   <p className="text-sm font-semibold text-[#5C4033]">Book Cover</p>
-                  <p className="text-xs text-[#8B6F5E] -mt-1">อัพโหลดหรือวางลิงก์รูปหน้าปก</p>
+                  <p className="text-xs text-[#8B6F5E] -mt-1">อัพโหลดหรือวางลิงก์รูปภาพ</p>
 
-                  {/* Drop zone */}
                   <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full aspect-[2/3] border-2 border-dashed border-[#D9D2C7] rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[#C07B5A] transition-colors bg-white overflow-hidden"
+                    onClick={() => !isUploadingCover && fileInputRef.current?.click()}
+                    style={{ aspectRatio: "2/3" }}
+                    className="relative w-full border-2 border-dashed border-[#D9D2C7] rounded-lg cursor-pointer hover:border-[#C07B5A] transition-colors bg-white overflow-hidden"
                   >
-                    {form.coverImage ? (
-                      <img src={form.coverImage} alt="cover" className="w-full h-full object-cover" />
+                    {isUploadingCover ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-white">
+                        <Loader2 size={22} className="text-[#C07B5A] animate-spin" />
+                        <span className="text-[10px] text-[#C4B5A8]">กำลังอัพโหลด...</span>
+                      </div>
+                    ) : form.coverImage ? (
+                      <img src={form.coverImage} alt="cover" className="absolute inset-0 w-full h-full object-cover object-center" />
                     ) : (
-                      <>
-                        <Upload size={22} className="text-[#C4B5A8] mb-1" />
-                        <span className="text-[11px] text-[#C4B5A8] text-center leading-tight">อัพโหลดรูปภาพ</span>
-                      </>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+                        <Upload size={20} className="text-[#C4B5A8]" />
+                        <span className="text-[11px] text-[#C4B5A8] text-center leading-tight px-1">คลิกเพื่ออัพโหลด</span>
+                      </div>
                     )}
                   </div>
                   <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverFile} />
 
-                  {/* URL input */}
-                  <div className="flex gap-1">
-                    <Input
-                      placeholder="วางลิงก์รูปหน้าปก..."
-                      className="bg-white text-xs h-8 flex-1 min-w-0"
-                      value={form.coverUrl}
-                      onChange={e => setForm(f => ({ ...f, coverUrl: e.target.value }))}
-                      onKeyDown={e => e.key === "Enter" && handleCoverUrl()}
-                    />
-                    <Button size="sm" variant="outline" className="h-8 px-2 border-[#D9D2C7]" onClick={handleCoverUrl}>
-                      <Link size={13} />
-                    </Button>
-                  </div>
-                  {form.coverImage && (
-                    <Button size="sm" variant="ghost" className="h-7 text-xs text-red-400 hover:text-red-600"
-                      onClick={() => setForm(f => ({ ...f, coverImage: null }))}>
-                      ลบรูป
+                  {/* ✅ URL input — auto-load on paste/type */}
+                  <Input
+                    placeholder="วางลิงก์รูปภาพ..."
+                    className="bg-white text-xs h-8"
+                    value={form.coverUrl}
+                    onChange={handleCoverUrlChange}
+                    onPaste={handleCoverUrlPaste}
+                  />
+
+                  {form.coverImage && !isUploadingCover && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs text-red-400 hover:text-red-600 flex items-center gap-1"
+                      onClick={() => setForm(f => ({ ...f, coverImage: null }))}
+                    >
+                      <Trash2 size={12} /> ล้างรูปหน้าปก
                     </Button>
                   )}
                 </div>
 
-                {/* Right fields */}
                 <div className="flex flex-col gap-3 flex-1">
                   <div>
                     <label className="text-sm font-semibold text-[#5C4033] block mb-1">Title <span className="text-red-400">*</span></label>
@@ -314,19 +373,17 @@ export default function AddBookModal() {
                         onChange={e => setForm(f => ({ ...f, isbn: e.target.value }))} />
                     </div>
                     <div className="flex-1">
-                      <label className="text-sm font-semibold text-[#5C4033] block mb-1">Total Pages</label>
-                      <Input type="number" min={0} className="bg-white border-[#D9D2C7]" value={form.totalPages}
+                      <label className="text-sm font-semibold text-[#5C4033] block mb-1">Total Pages <span className="text-red-400">*</span></label>
+                      <Input type="number" min={1} className="bg-white border-[#D9D2C7]" value={form.totalPages}
                         onChange={e => setForm(f => ({ ...f, totalPages: e.target.value }))} />
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Categories */}
               <div ref={categoryRef}>
                 <label className="text-sm font-semibold text-[#5C4033] block mb-2">Categories</label>
                 <div className="border border-[#D9D2C7] rounded-lg bg-white p-2">
-                  {/* Selected tags */}
                   {form.categories.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-2">
                       {form.categories.map(cat => (
@@ -337,7 +394,6 @@ export default function AddBookModal() {
                       ))}
                     </div>
                   )}
-                  {/* Search input */}
                   <div className="flex items-center gap-2 px-1">
                     <Search size={14} className="text-[#8B6F5E] flex-shrink-0" />
                     <input
@@ -351,7 +407,6 @@ export default function AddBookModal() {
                   </div>
                 </div>
 
-                {/* Dropdown */}
                 {showCategoryDropdown && (
                   <div className="border border-[#D9D2C7] rounded-lg bg-white mt-1 shadow-md max-h-44 overflow-y-auto">
                     {filteredCategories.map(cat => (
@@ -373,7 +428,6 @@ export default function AddBookModal() {
                 )}
               </div>
 
-              {/* Description */}
               <div>
                 <label className="text-sm font-semibold text-[#5C4033] block mb-2">Description</label>
                 <Textarea
@@ -385,15 +439,14 @@ export default function AddBookModal() {
               </div>
             </div>
 
-            {/* Save button */}
             <div className="pt-3 flex-shrink-0">
               <Button
                 className="w-full bg-[#3D2B1F] hover:bg-[#2E1F15] text-white h-11 text-base font-semibold"
                 onClick={handleSaveManual}
-                disabled={isSaving}
+                disabled={isSaving || isUploadingCover}
               >
                 {isSaving ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
-                Save Book to Library
+                {isUploadingCover ? "กำลังอัพโหลดรูป..." : isSaving ? "กำลังบันทึก..." : "Save Book to Library"}
               </Button>
             </div>
           </TabsContent>

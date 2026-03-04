@@ -15,9 +15,7 @@ interface BookInput {
 
 export async function addBookToLibrary(bookData: BookInput) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false, error: "Unauthorized" }
-  }
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
   try {
     await prisma.book.create({
       data: {
@@ -55,9 +53,7 @@ interface ManualBookInput {
 
 export async function addBookManually(bookData: ManualBookInput) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false, error: "Unauthorized" }
-  }
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
   try {
     await prisma.book.create({
       data: {
@@ -86,10 +82,7 @@ export async function addBookManually(bookData: ManualBookInput) {
 async function resolveCategories(names: string[]) {
   const results = []
   for (const name of names) {
-    const slug = name
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "")
+    const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
     const category = await prisma.category.upsert({
       where: { slug },
       update: {},
@@ -102,24 +95,14 @@ async function resolveCategories(names: string[]) {
 
 export async function toggleFavorite(bookId: string, currentStatus: boolean) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false, error: "Unauthorized" }
-  }
-
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
   try {
     await prisma.book.update({
-      where: {
-        id: bookId,
-        userId: session.user.id
-      },
-      data: {
-        isFavorite: !currentStatus
-      },
+      where: { id: bookId, userId: session.user.id },
+      data: { isFavorite: !currentStatus },
     })
-    
     revalidatePath("/books")
     revalidatePath("/favorites")
-    
     return { success: true }
   } catch (e) {
     console.error(e)
@@ -130,28 +113,39 @@ export async function toggleFavorite(bookId: string, currentStatus: boolean) {
 export async function updateBookProgress(bookId: string, currentPage: number, note?: string) {
   const session = await auth()
   if (!session?.user?.id) return { success: false, error: "Unauthorized" }
-
   try {
-    const book = await prisma.book.findUnique({ 
-      where: { id: bookId, userId: session.user.id } 
+    const book = await prisma.book.findUnique({
+      where: { id: bookId, userId: session.user.id }
     })
     if (!book) return { success: false, error: "Book not found" }
+
+    // ── Auto status logic ──
+    const total = book.totalPages || 0
+    let newStatus = book.status
+
+    if (currentPage >= total && total > 0) {
+      newStatus = "COMPLETED"
+    } // ลบ currentPage > 0 ออก
+    else if (book.status === "WANT_TO_READ" || book.status === "DROPPED") {
+      newStatus = "READING"
+    }
+
     await prisma.$transaction([
       prisma.book.update({
         where: { id: bookId },
-        data: { currentPage: currentPage }
+        data: {
+          currentPage,
+          status: newStatus,
+          ...(newStatus === "COMPLETED" && !book.finishedAt ? { finishedAt: new Date() } : {}),
+          ...(newStatus === "READING" && !book.startedAt ? { startedAt: new Date() } : {}),
+        }
       }),
       prisma.progressLog.create({
-        data: {
-          bookId: bookId,
-          currentPage: currentPage,
-          note: note || null
-        }
+        data: { bookId, currentPage, note: note || null }
       })
     ])
     revalidatePath(`/books/${bookId}`)
     return { success: true }
-
   } catch (error) {
     console.error(error)
     return { success: false, error: "Database error" }
@@ -161,21 +155,13 @@ export async function updateBookProgress(bookId: string, currentPage: number, no
 export async function updateBookStatus(bookId: string, status: any) {
   const session = await auth()
   if (!session?.user?.id) return { success: false, error: "Unauthorized" }
-
   try {
     await prisma.book.update({
-      where: { 
-        id: bookId,
-        userId: session.user.id
-      },
-      data: { 
-        status: status 
-      }
+      where: { id: bookId, userId: session.user.id },
+      data: { status }
     })
-
     revalidatePath(`/books/${bookId}`)
-    revalidatePath(`/books`) 
-    
+    revalidatePath(`/books`)
     return { success: true }
   } catch (error) {
     console.error(error)
@@ -186,28 +172,71 @@ export async function updateBookStatus(bookId: string, status: any) {
 export async function updateBookReview(bookId: string, rating: number, content: string) {
   const session = await auth()
   if (!session?.user?.id) return { success: false, error: "Unauthorized" }
+  try {
+    const existingReview = await prisma.review.findFirst({ where: { bookId } })
+    if (existingReview) {
+      await prisma.review.update({ where: { id: existingReview.id }, data: { rating, content } })
+    } else {
+      await prisma.review.create({ data: { bookId, rating, content } })
+    }
+    revalidatePath(`/books/${bookId}`)
+    return { success: true }
+  } catch (error) {
+    console.error(error)
+    return { success: false, error: "Database error" }
+  }
+}
+
+export async function deleteBooks(bookIds: string[]) {
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
+  try {
+    await prisma.book.deleteMany({
+      where: { id: { in: bookIds }, userId: session.user.id }
+    })
+    revalidatePath("/books")
+    return { success: true }
+  } catch (error) {
+    console.error(error)
+    return { success: false, error: "Database error" }
+  }
+}
+
+// เพิ่มฟังก์ชันนี้ใน actions/book.ts
+
+export async function updateBookDetails(bookId: string, data: {
+  title: string
+  authors: string[]
+  isbn: string | null
+  totalPages: number
+  description: string | null
+  coverImage: string | null
+  categories: string[]
+}) {
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
 
   try {
-    const existingReview = await prisma.review.findFirst({
-      where: { bookId: bookId }
+    // ลบ categories เดิมออกก่อน แล้วสร้างใหม่
+    await prisma.bookCategory.deleteMany({ where: { bookId } })
+
+    const categoryData = await resolveCategories(data.categories)
+
+    await prisma.book.update({
+      where: { id: bookId, userId: session.user.id },
+      data: {
+        title: data.title,
+        author: data.authors.join(", "),
+        isbn: data.isbn,
+        totalPages: data.totalPages,
+        description: data.description,
+        coverImage: data.coverImage,
+        categories: { create: categoryData },
+      }
     })
 
-    if (existingReview) {
-      await prisma.review.update({
-        where: { id: existingReview.id },
-        data: { rating, content }
-      })
-    } else {
-      await prisma.review.create({
-        data: {
-          bookId,
-          rating,
-          content
-        }
-      })
-    }
-
     revalidatePath(`/books/${bookId}`)
+    revalidatePath("/books")
     return { success: true }
   } catch (error) {
     console.error(error)

@@ -42,7 +42,7 @@ export default function LoginPage() {
       </div>
       <div className="space-y-2">
         <h2 className="text-2xl font-bold text-[#5C4033]">Welcome back</h2>
-        <p className="text-[#8B6F5E] text-sm font-ibm">ยินดีต้อนรับกลับมา เข้าสู่คลังหนังสือของคุณ</p>
+        <p className="text-[#8B6F5E] text-sm font-ibm">ยินดีต้อนรับกลับเข้าสู่คลังหนังสือของคุณ</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4 font-ibm">
         <div className="space-y-2">
@@ -57,7 +57,6 @@ export default function LoginPage() {
         <div className="space-y-2">
           <div className="flex justify-between items-center text-xs">
             <Label>Password</Label>
-            <span className="text-[#C07B5A] hover:underline cursor-pointer">Forgot password?</span>
           </div>
           <Input
             name="password"

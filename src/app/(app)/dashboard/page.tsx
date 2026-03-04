@@ -21,13 +21,19 @@ export default async function DashboardPage() {
   const userId = session.user.id
   const currentYear = new Date().getFullYear()
 
-  const twelveMonthsAgo = new Date()
-  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11)
-  twelveMonthsAgo.setDate(1)
-  twelveMonthsAgo.setHours(0, 0, 0, 0)
+  // ✅ ดึง user ก่อนเพื่อเอา createdAt
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true, username: true, createdAt: true },
+  })
+
+  // ✅ เดือนที่ register เป็นจุดเริ่มต้น
+  const signupMonth = new Date(user!.createdAt.getFullYear(), user!.createdAt.getMonth(), 1)
+
+  // ✅ ดึง completed books ตั้งแต่เดือน register เป็นต้นไป
+  const signupMonthPlus12 = new Date(signupMonth.getFullYear(), signupMonth.getMonth() + 12, 1)
 
   const [
-    user,
     totalBooks,
     completed,
     reading,
@@ -36,10 +42,6 @@ export default async function DashboardPage() {
     yearlyGoal,
     completedWithDate,
   ] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true, username: true },
-    }),
     prisma.book.count({ where: { userId } }),
     prisma.book.count({ where: { userId, status: "COMPLETED" } }),
     prisma.book.count({ where: { userId, status: "READING" } }),
@@ -56,15 +58,18 @@ export default async function DashboardPage() {
       where: {
         userId,
         status: "COMPLETED",
-        finishedAt: { gte: twelveMonthsAgo },
+        finishedAt: {
+          gte: signupMonth,
+          lt: signupMonthPlus12,
+        },
       },
       select: { finishedAt: true },
     }),
   ])
 
+  // ✅ 12 เดือนเสมอ เริ่มจากเดือน register
   const trendData = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date()
-    d.setMonth(d.getMonth() - 11 + i)
+    const d = new Date(signupMonth.getFullYear(), signupMonth.getMonth() + i, 1)
     const y = d.getFullYear()
     const m = d.getMonth()
 
@@ -75,9 +80,9 @@ export default async function DashboardPage() {
     }).length
 
     return {
-      name: d.toLocaleDateString("en-US", { month: "short" }),
-      total,
-    }
+  name: d.toLocaleDateString("en-US", { month: "short" }),
+  total,
+}
   })
 
   const today = new Date().toLocaleDateString("th-TH", {
@@ -140,7 +145,6 @@ export default async function DashboardPage() {
             </div>
           ) : (
             recentBooks.map((book) => (
-              
               <Link href={`/books/${book.id}`} key={book.id}>
                 <div className="flex-shrink-0 w-[120px] space-y-2 cursor-pointer hover:opacity-90 transition-opacity">
                   <div className="h-[180px] w-full bg-[#FAF9F6] border border-[#D9D2C7] rounded-lg shadow-sm overflow-hidden relative group">
@@ -163,7 +167,6 @@ export default async function DashboardPage() {
                   <p className="text-[10px] text-[#8B6F5E] truncate">{book.author}</p>
                 </div>
               </Link>
-              
             ))
           )}
         </div>
@@ -189,7 +192,6 @@ function StatCard({ label, value, icon: Icon, color, sub }: StatCardProps) {
       </div>
       <div className="text-[10px] uppercase tracking-wider text-[#8B6F5E] font-medium mb-1">{label}</div>
       <div className={`text-3xl font-bold ${color}`}>{value}</div>
-      {/* reserve space เสมอ แม้ไม่มี sub */}
       <div className="text-[10px] text-[#9CAF88] mt-1 font-medium h-4">
         {sub ?? ""}
       </div>

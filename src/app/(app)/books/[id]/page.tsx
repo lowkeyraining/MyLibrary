@@ -3,14 +3,16 @@ import { auth } from "@/auth"
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
 import { FavoriteButton } from "@/components/favorite-button"
-import { ChevronRight, BookOpen, Star } from "lucide-react"
+import { ChevronRight, Star } from "lucide-react"
 import { StatusSelect } from "@/components/status-select"
 import { UpdateProgressModal } from "@/components/update-progress-modal"
 import { ReviewModal } from "@/components/review-modal"
+import { EditBookModal } from "@/components/edit-book-modal"
+import { DeleteBookButton } from "@/components/delete-book-button"
 
 const formatDate = (date: Date) => {
-  return new Intl.DateTimeFormat('th-TH', { 
-    day: 'numeric', month: 'short', year: 'numeric' 
+  return new Intl.DateTimeFormat('th-TH', {
+    day: 'numeric', month: 'short', year: 'numeric'
   }).format(date)
 }
 
@@ -36,7 +38,7 @@ export default async function BookDetailPage({ params }: { params: { id: string 
 
   return (
     <div className="max-w-[1000px] w-full mx-auto p-6 md:p-10">
-      
+
       {/* Breadcrumb */}
       <div className="text-xs text-[#8B6F5E] mb-6 flex items-center gap-1.5">
         <Link href="/books" className="hover:text-[#C07B5A] transition-colors">My Library</Link>
@@ -46,14 +48,13 @@ export default async function BookDetailPage({ params }: { params: { id: string 
 
       {/* 3-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_260px] gap-7 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
-        
-        {/* COL 1: Cover + Status (เอา Edit/Delete ออกแล้ว) */}
+
+        {/* COL 1: Cover + Status only */}
         <div className="flex flex-col gap-3">
           <div className="w-full aspect-[2/3] rounded-xl border border-[#D9D2C7] flex flex-col items-center justify-center relative overflow-hidden bg-gradient-to-br from-[#C07B5A] to-[#8B4A2E] group shadow-sm">
             <div className="absolute top-2 right-2 z-10">
               <FavoriteButton bookId={book.id} initialFavorite={book.isFavorite} />
             </div>
-            
             {book.coverImage ? (
               <img src={book.coverImage} alt={book.title} className="w-full h-full object-cover" />
             ) : (
@@ -73,16 +74,35 @@ export default async function BookDetailPage({ params }: { params: { id: string 
         {/* COL 2: Info + Synopsis + Progress */}
         <div className="flex flex-col gap-5">
           <div>
-            <div className="flex items-center gap-2 flex-wrap mb-2">
-              <span className="inline-flex items-center text-[10px] px-2.5 py-1 rounded-full font-medium bg-[#C07B5A]/10 text-[#C07B5A]">
-                {book.status.replace(/_/g, ' ')}
-              </span>
-              {book.categories.map(c => (
-                <span key={c.categoryId} className="inline-flex items-center text-[10px] px-2.5 py-1 rounded-full font-medium bg-[#EDE8DF] text-[#8B6F5E] border border-[#D9D2C7]">
-                  {c.category.name}
+            {/* Categories + Edit/Delete buttons in same row */}
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center text-[10px] px-2.5 py-1 rounded-full font-medium bg-[#C07B5A]/10 text-[#C07B5A]">
+                  {book.status.replace(/_/g, ' ')}
                 </span>
-              ))}
+                {book.categories.map(c => (
+                  <span key={c.categoryId} className="inline-flex items-center text-[10px] px-2.5 py-1 rounded-full font-medium bg-[#EDE8DF] text-[#8B6F5E] border border-[#D9D2C7]">
+                    {c.category.name}
+                  </span>
+                ))}
+              </div>
+
+              {/* Edit + Delete icons */}
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <EditBookModal book={{
+                  id: book.id,
+                  title: book.title,
+                  author: book.author,
+                  isbn: book.isbn,
+                  totalPages: book.totalPages,
+                  description: book.description,
+                  coverImage: book.coverImage,
+                  categories: book.categories,
+                }} />
+                <DeleteBookButton bookId={book.id} />
+              </div>
             </div>
+
             <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-[#5C4033] leading-snug mb-1">
               {book.title}
             </h1>
@@ -106,12 +126,12 @@ export default async function BookDetailPage({ params }: { params: { id: string 
               <span>หน้า {current} {total > 0 ? `/ ${total}` : ''}</span>
               <span>{progressPct}%</span>
             </div>
-            <UpdateProgressModal 
-              bookId={book.id} 
-              title={book.title} 
-              author={book.author} 
-              totalPages={book.totalPages || 0} 
-              initialPage={book.currentPage || 0} 
+            <UpdateProgressModal
+              bookId={book.id}
+              title={book.title}
+              author={book.author}
+              totalPages={book.totalPages || 0}
+              initialPage={book.currentPage || 0}
             />
           </div>
         </div>
@@ -120,7 +140,6 @@ export default async function BookDetailPage({ params }: { params: { id: string 
         <div>
           <div className="bg-white border border-[#D9D2C7] rounded-xl p-[18px] shadow-sm">
             <div className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#8B6F5E] mb-3">Rating & Review</div>
-            
             {book.review ? (
               <>
                 <div className="flex items-center gap-2 mb-2.5">
@@ -136,20 +155,18 @@ export default async function BookDetailPage({ params }: { params: { id: string 
             ) : (
               <p className="text-[12px] text-[#8B6F5E] italic mb-3.5">ยังไม่ได้เขียนรีวิว</p>
             )}
-            
-            <ReviewModal 
-              bookId={book.id} 
-              title={book.title} 
-              author={book.author} 
-              initialRating={book.review?.rating || 0} 
-              initialContent={book.review?.content || ""} 
+            <ReviewModal
+              bookId={book.id}
+              title={book.title}
+              author={book.author}
+              initialRating={book.review?.rating || 0}
+              initialContent={book.review?.content || ""}
             />
           </div>
         </div>
-
       </div>
 
-      {/* Bottom Grid: Info & History */}
+      {/* Bottom Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 pt-7 border-t border-[#D9D2C7] animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#8B6F5E] mb-3">Book Info</div>
@@ -180,7 +197,6 @@ export default async function BookDetailPage({ params }: { params: { id: string 
           )}
         </div>
       </div>
-
     </div>
   )
 }

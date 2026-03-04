@@ -23,19 +23,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ items: [] })
     }
 
-    console.log(`[API] กำลังค้นหาหนังสือคำว่า: ${query}`)
+    const isIsbn = /^[0-9]{10,13}$/.test(query.trim())
+    const searchQuery = isIsbn ? `isbn:${query.trim()}` : query
 
     const GOOGLE_BOOKS_API = "https://www.googleapis.com/books/v1/volumes"
-    const res = await fetch(`${GOOGLE_BOOKS_API}?q=${encodeURIComponent(query)}&maxResults=8&printType=books`)
-    
-    // เช็คว่า Google API ตอบกลับมาปกติไหม (สถานะ 200)
+    const res = await fetch(`${GOOGLE_BOOKS_API}?q=${encodeURIComponent(searchQuery)}&maxResults=8&printType=books`)
+
     if (!res.ok) {
-      console.error(`[API] Google Books Error: ${res.status} ${res.statusText}`)
       return NextResponse.json({ items: [] }, { status: 500 })
     }
 
     const data = await res.json()
-    console.log(`[API] Google ตอบกลับมา: เจอหนังสือ ${data.items ? data.items.length : 0} เล่ม`)
 
     const books = data.items?.map((item: GoogleBookItem) => ({
       id: item.id,
@@ -52,8 +50,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ items: books })
 
   } catch (error) {
-    // ถ้าโค้ดพัง จะมาตกตรงนี้ และแสดง Error ใน Terminal
-    console.error("[API] พังจ้า! เกิด Error ขึ้น:", error)
+    console.error("[API] Error:", error)
     return NextResponse.json({ items: [] }, { status: 500 })
   }
 }
