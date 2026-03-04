@@ -33,12 +33,12 @@ export function FavoriteButton({ bookId, initialFavorite }: { bookId: string, in
     <button 
       onClick={handleToggle}
       disabled={isLoading}
-      className="absolute top-2 left-2 z-10 bg-white/80 p-1.5 rounded-full backdrop-blur-sm hover:scale-110 transition-transform shadow-sm"
+      className="bg-white/80 p-1.5 rounded-full backdrop-blur-sm hover:scale-110 transition-transform shadow-sm outline-none cursor-pointer"
       title={isFavorite ? "เลิกเป็นเล่มโปรด" : "เพิ่มเป็นเล่มโปรด"}
     >
       <Heart 
         className={`w-5 h-5 transition-colors ${
-          isFavorite ? "text-red-500 fill-red-500" : "text-gray-400"
+          isFavorite ? "text-[#ff0000] fill-[#ff0000af]" : "text-[#817873d0]"
         }`} 
       />
     </button>
