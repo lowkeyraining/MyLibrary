@@ -16,12 +16,14 @@ const formatDate = (date: Date) => {
   }).format(date)
 }
 
-export default async function BookDetailPage({ params }: { params: { id: string } }) {
+export default async function BookDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+
   const session = await auth()
   if (!session?.user?.id) redirect("/login")
 
   const book = await prisma.book.findUnique({
-    where: { id: params.id, userId: session.user.id },
+    where: { id: id, userId: session.user.id },
     include: {
       categories: { include: { category: true } },
       progressLogs: { orderBy: { loggedAt: 'desc' } },

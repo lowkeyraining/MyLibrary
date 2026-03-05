@@ -119,14 +119,12 @@ export async function updateBookProgress(bookId: string, currentPage: number, no
     })
     if (!book) return { success: false, error: "Book not found" }
 
-    // ── Auto status logic ──
     const total = book.totalPages || 0
     let newStatus = book.status
 
     if (currentPage >= total && total > 0) {
       newStatus = "COMPLETED"
-    } // ลบ currentPage > 0 ออก
-    else if (book.status === "WANT_TO_READ" || book.status === "DROPPED") {
+    } else if (book.status === "WANT_TO_READ" || book.status === "DROPPED") {
       newStatus = "READING"
     }
 
@@ -156,9 +154,22 @@ export async function updateBookStatus(bookId: string, status: any) {
   const session = await auth()
   if (!session?.user?.id) return { success: false, error: "Unauthorized" }
   try {
+    const book = await prisma.book.findUnique({
+      where: { id: bookId, userId: session.user.id }
+    })
+    if (!book) return { success: false, error: "Book not found" }
+
     await prisma.book.update({
       where: { id: bookId, userId: session.user.id },
-      data: { status }
+      data: {
+        status,
+        ...(status === "COMPLETED" && book.totalPages
+          ? { currentPage: book.totalPages, finishedAt: book.finishedAt ?? new Date() }
+          : {}),
+        ...(status === "READING" && !book.startedAt
+          ? { startedAt: new Date() }
+          : {}),
+      }
     })
     revalidatePath(`/books/${bookId}`)
     revalidatePath(`/books`)
@@ -202,8 +213,6 @@ export async function deleteBooks(bookIds: string[]) {
   }
 }
 
-// เพิ่มฟังก์ชันนี้ใน actions/book.ts
-
 export async function updateBookDetails(bookId: string, data: {
   title: string
   authors: string[]
@@ -217,7 +226,6 @@ export async function updateBookDetails(bookId: string, data: {
   if (!session?.user?.id) return { success: false, error: "Unauthorized" }
 
   try {
-    // ลบ categories เดิมออกก่อน แล้วสร้างใหม่
     await prisma.bookCategory.deleteMany({ where: { bookId } })
 
     const categoryData = await resolveCategories(data.categories)

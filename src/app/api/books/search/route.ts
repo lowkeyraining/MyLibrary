@@ -27,7 +27,8 @@ export async function GET(request: Request) {
     const searchQuery = isIsbn ? `isbn:${query.trim()}` : query
 
     const GOOGLE_BOOKS_API = "https://www.googleapis.com/books/v1/volumes"
-    const res = await fetch(`${GOOGLE_BOOKS_API}?q=${encodeURIComponent(searchQuery)}&maxResults=8&printType=books`)
+    const apiKey = process.env.GOOGLE_BOOKS_API_KEY
+  const res = await fetch(`${GOOGLE_BOOKS_API}?q=${encodeURIComponent(searchQuery)}&maxResults=8&printType=books&key=${apiKey}`)
 
     if (!res.ok) {
       return NextResponse.json({ items: [] }, { status: 500 })

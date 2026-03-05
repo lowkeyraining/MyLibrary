@@ -13,6 +13,25 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: my_library_app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: mysql://mylib_user:mylib_password@mysql:3306/my_library
+      NEXTAUTH_SECRET: your-secret-here
+      NEXTAUTH_URL: http://localhost:3000
+    depends_on:
+      mysql:
+        condition: service_healthy
 
 volumes:
   mysql_data:

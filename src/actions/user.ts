@@ -3,10 +3,13 @@
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { revalidatePath } from "next/cache"
+import bcrypt from "bcryptjs"
 
 interface ProfileData {
   name: string
   username: string
+  currentPassword?: string
+  newPassword?: string
 }
 
 export async function updateProfile(data: ProfileData) {
@@ -16,27 +19,45 @@ export async function updateProfile(data: ProfileData) {
   }
 
   try {
-    // เช็คก่อนว่า Username นี้มีคนอื่นใช้ไปหรือยัง (ถ้าพิมพ์เปลี่ยนใหม่)
     if (data.username) {
       const existingUser = await prisma.user.findUnique({
         where: { username: data.username }
       })
-      // ถ้ามีคนใช้แล้ว และไม่ใช่ตัวเราเอง
       if (existingUser && existingUser.id !== session.user.id) {
         return { success: false, error: "Username นี้มีผู้ใช้งานแล้ว" }
       }
     }
 
-    // อัปเดตข้อมูลใน Database
+    // ถ้าต้องการเปลี่ยนรหัสผ่าน
+    let hashedNewPassword: string | undefined
+    if (data.newPassword) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { password: true }
+      })
+
+      if (!user?.password) {
+        return { success: false, error: "ไม่พบข้อมูลรหัสผ่าน" }
+      }
+
+      // เช็คว่ารหัสผ่านเดิมถูกต้องไหม
+      const isCorrect = await bcrypt.compare(data.currentPassword || "", user.password)
+      if (!isCorrect) {
+        return { success: false, error: "รหัสผ่านเดิมไม่ถูกต้อง" }
+      }
+
+      hashedNewPassword = await bcrypt.hash(data.newPassword, 10)
+    }
+
     await prisma.user.update({
       where: { id: session.user.id },
       data: {
         name: data.name,
         username: data.username,
+        ...(hashedNewPassword ? { password: hashedNewPassword } : {}),
       }
     })
 
-    // สั่งให้หน้าเว็บดึงข้อมูลใหม่
     revalidatePath("/settings")
     return { success: true }
 
@@ -52,10 +73,10 @@ export async function getCurrentUser() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { 
-      name: true, 
-      email: true, 
-      image: true 
+    select: {
+      name: true,
+      email: true,
+      image: true
     }
   })
 

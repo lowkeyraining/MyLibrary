@@ -1,5 +1,5 @@
 "use client"
-import { signIn } from "next-auth/react" // ← client-side signIn
+import { signIn } from "next-auth/react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -12,11 +12,24 @@ export default function RegisterPage() {
   const router = useRouter()
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setLoading(true)
     setError("")
+
+    if (password.length < 8) {
+      setError("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร")
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError("รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน")
+      return
+    }
+
+    setLoading(true)
 
     const formData = new FormData(e.currentTarget)
     const res = await register(formData)
@@ -30,7 +43,7 @@ export default function RegisterPage() {
     const result = await signIn("credentials", {
       identifier: formData.get("email"),
       password: formData.get("password"),
-      redirect: false, // จัดการ redirect เอง
+      redirect: false,
     })
 
     if (result?.error) {
@@ -53,9 +66,7 @@ export default function RegisterPage() {
         <p className="text-[#8B6F5E] text-sm font-ibm">เริ่มติดตามการอ่านของคุณวันนี้</p>
       </div>
 
-      {error && (
-        <p className="text-red-500 text-sm">{error}</p>
-      )}
+      {error && <p className="text-red-500 text-sm">{error}</p>}
 
       <form onSubmit={handleSubmit} className="space-y-4 font-ibm">
         <div className="grid grid-cols-2 gap-4">
@@ -78,7 +89,39 @@ export default function RegisterPage() {
         </div>
         <div className="space-y-2">
           <Label>Password</Label>
-          <Input name="password" type="password" placeholder="อย่างน้อย 8 ตัวอักษร" className="rounded-lg h-11 bg-white border-[#D9D2C7]" required />
+          <Input
+            name="password"
+            type="password"
+            placeholder="อย่างน้อย 8 ตัวอักษร"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="rounded-lg h-11 bg-white border-[#D9D2C7]"
+            required
+          />
+          {password && password.length < 8 && (
+            <p className="text-[12px] text-red-500">รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label>Confirm Password</Label>
+          <Input
+            name="confirmPassword"
+            type="password"
+            placeholder="กรอกรหัสผ่านอีกครั้ง"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className={`rounded-lg h-11 bg-white border-[#D9D2C7] ${
+              confirmPassword && password !== confirmPassword ? "border-red-400" :
+              confirmPassword && password === confirmPassword ? "border-green-400" : ""
+            }`}
+            required
+          />
+          {confirmPassword && password !== confirmPassword && (
+            <p className="text-[12px] text-red-500">รหัสผ่านไม่ตรงกัน</p>
+          )}
+          {confirmPassword && password === confirmPassword && password.length >= 8 && (
+            <p className="text-[12px] text-green-600">รหัสผ่านตรงกัน ✓</p>
+          )}
         </div>
         <Button
           type="submit"
