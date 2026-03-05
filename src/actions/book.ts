@@ -251,3 +251,44 @@ export async function updateBookDetails(bookId: string, data: {
     return { success: false, error: "Database error" }
   }
 }
+
+export async function updateProgressLog(logId: string, currentPage: number, note: string | null) {
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
+  try {
+    const log = await prisma.progressLog.findUnique({
+      where: { id: logId },
+      include: { book: true }
+    })
+    if (!log || log.book.userId !== session.user.id) return { success: false, error: "Not found" }
+
+    await prisma.progressLog.update({
+      where: { id: logId },
+      data: { currentPage, note: note || null }
+    })
+    revalidatePath(`/books/${log.bookId}`)
+    return { success: true }
+  } catch (error) {
+    console.error(error)
+    return { success: false, error: "Database error" }
+  }
+}
+
+export async function deleteProgressLog(logId: string) {
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
+  try {
+    const log = await prisma.progressLog.findUnique({
+      where: { id: logId },
+      include: { book: true }
+    })
+    if (!log || log.book.userId !== session.user.id) return { success: false, error: "Not found" }
+
+    await prisma.progressLog.delete({ where: { id: logId } })
+    revalidatePath(`/books/${log.bookId}`)
+    return { success: true }
+  } catch (error) {
+    console.error(error)
+    return { success: false, error: "Database error" }
+  }
+}

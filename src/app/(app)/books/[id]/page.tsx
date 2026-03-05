@@ -9,6 +9,7 @@ import { UpdateProgressModal } from "@/components/update-progress-modal"
 import { ReviewModal } from "@/components/review-modal"
 import { EditBookModal } from "@/components/edit-book-modal"
 import { DeleteBookButton } from "@/components/delete-book-button"
+import { ProgressLogActions } from "@/components/progress-log-actions"
 
 const formatDate = (date: Date) => {
   return new Intl.DateTimeFormat('th-TH', {
@@ -76,7 +77,6 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
         {/* COL 2: Info + Synopsis + Progress */}
         <div className="flex flex-col gap-5">
           <div>
-            {/* Categories + Edit/Delete buttons in same row */}
             <div className="flex items-start justify-between gap-2 mb-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center text-[10px] px-2.5 py-1 rounded-full font-medium bg-[#C07B5A]/10 text-[#C07B5A]">
@@ -88,8 +88,6 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
                   </span>
                 ))}
               </div>
-
-              {/* Edit + Delete icons */}
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <EditBookModal book={{
                   id: book.id,
@@ -187,10 +185,18 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
           {book.progressLogs.length > 0 ? (
             <div className="flex flex-col">
               {book.progressLogs.map((log) => (
-                <div key={log.id} className="flex items-start gap-3 py-2.5 border-b border-[#D9D2C7] last:border-0">
+                <div key={log.id} className="flex items-center gap-3 py-2.5 border-b border-[#D9D2C7] last:border-0 group">
                   <div className="text-[13px] font-semibold text-[#5C4033] min-w-[55px]">p. {log.currentPage}</div>
-                  <div className="text-[12px] text-[#8B6F5E] flex-1 mt-0.5">{log.note || '-'}</div>
-                  <div className="text-[11px] text-[#8B6F5E] whitespace-nowrap mt-0.5">{formatDate(log.loggedAt)}</div>
+                  <div className="text-[12px] text-[#8B6F5E] flex-1">{log.note || '-'}</div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="text-[11px] text-[#8B6F5E] whitespace-nowrap">{formatDate(log.loggedAt)}</div>
+                    <ProgressLogActions
+                      logId={log.id}
+                      currentPage={log.currentPage}
+                      note={log.note}
+                      totalPages={book.totalPages || 0}
+                    />
+                  </div>
                 </div>
               ))}
             </div>

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
-// ✅ รวม protected routes ไว้ที่นี่ที่เดียว ชัดเจน
 const PROTECTED_ROUTES = [
   '/dashboard',
   '/books',
@@ -9,7 +8,7 @@ const PROTECTED_ROUTES = [
   '/settings',
 ]
 
-// ✅ Routes ที่ login แล้วไม่ควรเข้า (redirect ไป dashboard)
+// Routes ที่ login แล้วไม่ควรเข้า (redirect ไป dashboard)
 const AUTH_ROUTES = ['/login', '/register']
 
 export async function middleware(request: NextRequest) {
@@ -27,12 +26,12 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(route)
   )
 
-  // ✅ ยังไม่ login + เข้า protected route → ไป /login
+  // ยังไม่ login + เข้า protected route → ไป /login
   if (isProtected && !isLoggedIn) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // ✅ login แล้ว + พยายามเข้า /login หรือ /register → ไป /dashboard
+  // login แล้ว + พยายามเข้า /login หรือ /register → ไป /dashboard
   if (isAuthRoute && isLoggedIn) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
@@ -41,7 +40,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // ✅ matcher ให้ครอบทุก route ยกเว้น static files และ api/auth
+  // matcher ให้ครอบทุก route ยกเว้น static files และ api/auth
   matcher: [
     '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
   ],
